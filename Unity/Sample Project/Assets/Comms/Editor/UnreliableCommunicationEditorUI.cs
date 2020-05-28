@@ -1,4 +1,6 @@
-﻿using UnityEditor;
+﻿using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using UnityEditor;
 using UnityEngine;
 
 
@@ -11,6 +13,9 @@ public class UnreliableCommunicationEditorUI : Editor
     private static GUIStyle ToggleButtonStyleToggled = null;
     private bool lockEditor = false;
 
+    private List<string> names = new List<string>();
+    private List<string> addrs = new List<string>();
+    private List<int> ports = new List<int>();
 
     public override void OnInspectorGUI()
     {
@@ -113,6 +118,39 @@ public class UnreliableCommunicationEditorUI : Editor
             GUILayout.Label(string.Format("UDP Socket \"{0}\" listening on port {1}",c.Name,c.port));
         }
 
+        // Target Devices
+        this.PopulateLocalTargetVars(c);
+        EditorGUILayout.LabelField("Broadcast Targets");
+        EditorGUI.indentLevel += 1;
+        for (int i=0; i<c.Targets.Count; i++)
+        {
+            // Name, Remove
+            EditorGUILayout.BeginHorizontal();
+            this.names[i] = EditorGUILayout.TextField("Name", this.names[i]);
+            if (GUILayout.Button("-"))
+            {
+                this.addrs.RemoveAt(i);
+                this.ports.RemoveAt(i);
+                this.names.RemoveAt(i);
+                this.SetTargets(c);
+                this.PopulateLocalTargetVars(c);
+                return;
+            }
+            EditorGUILayout.EndHorizontal();
+            // IP, Port
+            EditorGUILayout.BeginHorizontal();
+            this.addrs[i] = EditorGUILayout.TextField("Address", this.addrs[i]);
+            this.ports[i] = EditorGUILayout.IntField("Port", this.ports[i]);
+            EditorGUILayout.EndHorizontal();
+        }
+        if (GUILayout.Button("+"))
+        {
+            c.Targets.Add(new CommunicationEndpoint("127.0.0.1", 12345));
+            this.PopulateLocalTargetVars(c);
+        }
+        EditorGUI.indentLevel -= 1;
+        this.SetTargets(c);
+
         // Message Handlers
         string handlerType = c.EventType.ToString() + "MessageReceived";
         SerializedProperty eventHandler = serializedObject.FindProperty(handlerType);
@@ -124,5 +162,28 @@ public class UnreliableCommunicationEditorUI : Editor
         GUILayout.FlexibleSpace();
         this.lockEditor = EditorGUILayout.Toggle("lock", this.lockEditor);
         EditorGUILayout.EndHorizontal();
+    }
+
+    private void PopulateLocalTargetVars(UnreliableCommunication c)
+    {
+        this.names = new List<string>();
+        this.addrs = new List<string>();
+        this.ports = new List<int>();
+
+        for (int i=0; i<c.Targets.Count; i++)
+        {
+            this.names.Add(c.Targets[i].Name);
+            this.addrs.Add(c.Targets[i].Address);
+            this.ports.Add(c.Targets[i].Port);
+        }
+    }
+
+    private void SetTargets(UnreliableCommunication c)
+    {
+        c.Targets = new List<CommunicationEndpoint>();
+        for (int i=0; i<this.addrs.Count; i++)
+        {
+            c.Targets.Add(new CommunicationEndpoint(this.addrs[i], this.ports[i], this.names[i]));
+        }
     }
 }

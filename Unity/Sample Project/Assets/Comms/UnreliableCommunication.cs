@@ -55,6 +55,9 @@ public class UnreliableCommunication : MonoBehaviour
 
     CommunicationStatistics statisticsReporter;
 
+    [SerializeField]
+    public List<CommunicationEndpoint> Targets;
+
     // ================================================================================ Unity Events =========================================================== //
     /// <summary>
     /// Socket constructor, creates all socket objects and defines each socket unique id
@@ -128,12 +131,11 @@ public class UnreliableCommunication : MonoBehaviour
         }
     }
 
-    // whenever socket is enabled, we enable the thread (The socket won't run if disabled)
-    private void OnEnable()
+    public void StartServer()
     {
         // sticks to the desired event type (and erases the previous list if the type changed)
         if (runningEventType != EventType)
-        { 
+        {
             messageQ = new Queue<object>();
             runningEventType = EventType;
         }
@@ -146,11 +148,11 @@ public class UnreliableCommunication : MonoBehaviour
             socketThread.IsBackground = true;
             stopThread = false;
             socketThread.Start();
-            Debug.Log(string.Format("{0}Listening on port {1} for {2} events",LogName,port,runningEventType.ToString()));
+            Debug.Log(string.Format("{0}Listening on port {1} for {2} events", LogName, port, runningEventType.ToString()));
         }
         catch (Exception err)
         {
-            Debug.LogError(string.Format("{0}Unable to start - {1}",LogName, err.ToString()));
+            Debug.LogError(string.Format("{0}Unable to start - {1}", LogName, err.ToString()));
 
             if (socketThread != null)
                 socketThread.Abort();
@@ -158,15 +160,10 @@ public class UnreliableCommunication : MonoBehaviour
             stopThread = true;
             _impl = null;
         }
-
-        
     }
 
-
-    // whenever socket is disabled, we stop listening for packets
-    private void OnDisable()
+    public void StopServer()
     {
-
         if (socketThread != null)
         {
             // asks thread to stopp
@@ -174,7 +171,7 @@ public class UnreliableCommunication : MonoBehaviour
 
             // closes socket
             _impl.Close();
-            
+
             // aborts thread if it is still running
             if (socketThread.IsAlive)
             {
@@ -188,7 +185,7 @@ public class UnreliableCommunication : MonoBehaviour
 
             // disposes of objects
             socketThread = null;
-            
+
             _impl = null;
 
         }
@@ -196,6 +193,25 @@ public class UnreliableCommunication : MonoBehaviour
         // erases queue
 
         Debug.Log(string.Format("{0}Stopped", LogName));
+    }
+
+    public void RestartServer()
+    {
+        this.StartServer();
+        this.StopServer();
+    }
+
+    // whenever socket is enabled, we enable the thread (The socket won't run if disabled)
+    private void OnEnable()
+    {
+        this.StartServer();
+    }
+
+
+    // whenever socket is disabled, we stop listening for packets
+    private void OnDisable()
+    {
+        this.StopServer();
     }
 
 
@@ -263,6 +279,40 @@ public class UnreliableCommunication : MonoBehaviour
                 statisticsReporter.RecordStreamError();
             }
         }
+    }
+
+    public void Broadcast(JSONObject msg)
+    {
+        this.Broadcast(msg.Print());
+    }
+
+    public void Broadcast(string msg)
+    {
+        this.Broadcast(Encoding.UTF8.GetBytes(msg));
+    }
+
+    public void Broadcast(byte[] msg)
+    {
+        foreach (CommunicationEndpoint target in this.Targets)
+        {
+            this.SendTo(msg, target.AsIPEndPoint());
+        }
+    }
+
+    public void SendTo(JSONObject msg, IPEndPoint target)
+    {
+        SendTo(msg.ToString(), target);
+    }
+
+    public void SendTo(string msg, IPEndPoint target)
+    {
+        byte[] msgAsBytes = Encoding.UTF8.GetBytes(msg);
+        SendTo(msgAsBytes, target);
+    }
+
+    public void SendTo(byte[] msg, IPEndPoint target)
+    {
+        (new UdpClient()).SendAsync(msg, msg.Length, target);
     }
 
 
