@@ -1,6 +1,6 @@
 const express = require('express');
 const fs = require('fs');
-var bodyParser = require('body-parser');  
+const bodyParser = require('body-parser');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,6 +26,7 @@ app.get('/test', (req, res, next) => {
     ID: <input type="text" name="id"><br>
     Passkey: <input type="text" name="key"><br>
     Room: <input type="text" name="room"><br>
+    Port: <input type="text" name="port"><br>
     Type: <select name="type" form="f">
         <option value="server">I am a Server</option>
         <option value="client">I am a Client</option>
@@ -41,6 +42,16 @@ app.get('/rooms', (req, res, next) => {
     res.end(JSON.stringify(Object.keys(rooms)));
 });
 
+app.get('/rooms/:name', (req, res, next) => {
+    console.log("[GET][/room]");
+    if (req.params.name in rooms) {
+        res.send("<pre><code>"+JSON.stringify(rooms[req.params.name].devices, null, 4)+"</code></pre>");
+    }
+    else {
+        res.redirect("/rooms");
+    }
+})
+
 app.post('/join', urlencodedParser, (req, res, next) => {
     console.log("[POST][/join]");
     
@@ -50,10 +61,10 @@ app.post('/join', urlencodedParser, (req, res, next) => {
         room: req.body.room,
         type: req.body.type.toLowerCase(),
         ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
-        port: 12345
+        port: parseInt(req.body.port)
     };
     if (!data.id || !data.key || !data.room || !data.type) {
-        res.status(400).end("Must provide an id, key, room, and type<br>Server was given<br>"+JSON.stringify(data, null, 4));
+        res.status(400).end("Must provide an id, key, room, and type <br>Server was given<br>"+JSON.stringify(data, null, 4));
     }
     
     // Add Device to existing Room
@@ -67,9 +78,7 @@ app.post('/join', urlencodedParser, (req, res, next) => {
                 res.end(JSON.stringify(simplifyDevices(rooms[data.room]))); // give new server a list of clients
             }
             else if (data.type === "client") {
-                console.log("Adding Client", data.id, "to", data.room);
                 rooms[data.room].devices[data.id] = data;
-                console.log("Added", rooms[data.room].devices);
                 res.end(JSON.stringify(getServerInfo(room))); // give client the server info
             }
             else {
@@ -94,7 +103,6 @@ app.post('/join', urlencodedParser, (req, res, next) => {
         res.status(404).end("Could not find requested room")
     }
 
-    console.log("Rooms updated to", JSON.stringify(rooms, null, 4));
 });
 
 /**
