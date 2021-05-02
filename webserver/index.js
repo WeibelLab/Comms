@@ -7,16 +7,16 @@ const PORT = process.env.PORT || 3000;
 const urlencodedParser = bodyParser.urlencoded({ extended: false })  
 
 let rooms = {
-    "blue-dog": {
-        "key": "inkoay",
-        "devices": {
-            "asdf": {
-                "type": "server",
-                "ip": "192.168.1.100",
-                "port": 4000
-            }
-        }
-    }
+    // "blue-dog": {
+    //     "key": "inkoay",
+    //     "devices": {
+    //         "asdf": {
+    //             "type": "server",
+    //             "ip": "192.168.1.100",
+    //             "port": 4000
+    //         }
+    //     }
+    // }
 }
 
 app.get('/test', (req, res, next) => {
